@@ -1,6 +1,7 @@
 export default interface Env {
   TELEGRAM_BOT_API_TOKEN: string;
   TELEGRAM_BOT_SECRET_TOKEN: string;
+  DB: D1Database;
 
   // KV Namespaces
   // Declare your KV Namespaces here

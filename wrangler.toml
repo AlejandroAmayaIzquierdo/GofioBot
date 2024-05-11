@@ -1,7 +1,6 @@
-name = "telegram-bot-on-worker"
+name = "gofio-bot"
 main = "src/index.ts"
-compatibility_date = "2023-05-08"
-workers_dev = false
+compatibility_date = "2024-05-11"
 
 # Declare a Cloudflare Worker KV namespace
 # See https://developers.cloudflare.com/workers/wrangler/workers-kv/
@@ -14,5 +13,12 @@ workers_dev = false
 # Set up cron triggers
 # See https://developers.cloudflare.com/workers/examples/cron-trigger/
 #
-# [triggers]
-# crons = ["* * * * *"]
+[[d1_databases]]
+binding = "DB"
+database_name = "gofio-bot-d1"
+database_id = "756e85b6-8845-45a0-81a6-be53e40d4986"
+
+
+[triggers]
+crons = ["0 10 * * *"]
+#crons = ["* * * * *"]
