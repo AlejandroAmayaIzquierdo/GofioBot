@@ -119,36 +119,37 @@ type D1ResponseWithResult = D1Response & { results: unknown[] };
 
 export async function handleBotCronEvent(
   bot: Bot,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   env: Env,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ctrl: ScheduledController
 ): Promise<void> {
   try {
-    // Handle worker cron events here
     const currentDate = new Date();
-    // const oneDayMillis = 24 * 60 * 60 * 1000; // Milliseconds in a day
+    const oneWeekMillis = 7 * 24 * 60 * 60 * 1000; // Milliseconds in a week
 
-    // Calculate the date range for reminders closest to 1 day from the current date
-    const startMonth = currentDate.getMonth() + 1;
-    const startDay = currentDate.getDate();
-    const endMonth = startMonth === 12 ? 1 : startMonth + 1; // Wrap around to January if end month is December
-    const endDay = startMonth === 12 && startDay === 31 ? 1 : startDay + 1; // Wrap around to 1st day of next month if current date is December 31
+    // Calculate the start and end dates for the one-week range
+    const startDate = new Date(currentDate.getTime() - oneWeekMillis);
+    const endDate = new Date(currentDate.getTime() + oneWeekMillis);
 
-    // Query the database for reminders within the date range
+    // Format the start and end dates
+    const startMonth = startDate.getMonth() + 1;
+    const startDay = startDate.getDate();
+    const endMonth = endDate.getMonth() + 1;
+    const endDay = endDate.getDate();
+
+    // Query the database for reminders within the one-week range
     const query = `
-    SELECT telegram_id, date,desc_text
-    FROM reminders
-    WHERE strftime('%m-%d', date) BETWEEN ? AND ?
-  `;
+      SELECT telegram_id, date, desc_text
+      FROM reminders
+      WHERE date BETWEEN ? AND ?
+    `;
     const resp = (await env.DB.prepare(query)
       .bind(
-        `${startMonth.toString().padStart(2, "0")}-${startDay
+        `${startDate.getFullYear()}-${startMonth
           .toString()
-          .padStart(2, "0")}`,
-        `${endMonth.toString().padStart(2, "0")}-${endDay
+          .padStart(2, "0")}-${startDay.toString().padStart(2, "0")}`,
+        `${endDate.getFullYear()}-${endMonth
           .toString()
-          .padStart(2, "0")}`
+          .padStart(2, "0")}-${endDay.toString().padStart(2, "0")}`
       )
       .run()) as D1ResponseWithResult;
 
@@ -168,7 +169,7 @@ export async function handleBotCronEvent(
       const { telegram_id, date, desc_text } = reminder;
       if (messages.has(telegram_id)) {
         const prevText = messages.get(telegram_id);
-        const mess = prevText + `\n\nRecordatorio: ${date} ${desc_text}`;
+        const mess = prevText + `\nRecordatorio: ${date} ${desc_text}`;
         messages.set(telegram_id, mess);
       } else {
         messages.set(telegram_id, `Recordatorio: ${date} ${desc_text}`);
@@ -176,11 +177,8 @@ export async function handleBotCronEvent(
     }
 
     for (const message of messages) {
-      console.log(message);
       await bot.api.sendMessage(message[0], message[1]);
     }
-
-    //bot.api.sendMessage(1992694297, "Hello, world!");
   } catch (err) {
     await bot.api.sendMessage(1992694297, JSON.stringify(err));
   }
