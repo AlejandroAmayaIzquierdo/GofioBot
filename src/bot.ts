@@ -19,51 +19,62 @@ export async function handleBotUpdate(
   });
 
   bot.command("reminders", async (ctx) => {
-    const resp = (await env.DB.prepare(
-      `SELECT date,desc_text FROM reminders WHERE telegram_id = ${ctx.chatId}`
-    ).run()) as D1ResponseWithResult;
+    try {
+      const resp = (await env.DB.prepare(
+        `SELECT date,desc_text FROM reminders WHERE telegram_id = ${ctx.chatId}`
+      ).run()) as D1ResponseWithResult;
 
-    const reminders = resp.results as { date: string; desc_text: string }[];
+      const reminders = resp.results as { date: string; desc_text: string }[];
 
-    if (!reminders || reminders.length === 0) {
-      await ctx.reply("No tienes recordatorios");
+      if (!reminders || reminders.length === 0) {
+        await ctx.reply("No tienes recordatorios");
+        return;
+      }
+
+      let message = "Tus recordatorios:\n";
+
+      reminders.forEach((reminder, index) => {
+        const date = new Date(reminder.date);
+        const formattedDate = `${date.getDate()}/${
+          date.getMonth() + 1
+        }/${date.getFullYear()}`;
+        message += `${formattedDate}: ${reminder.desc_text}\n`;
+      });
+
+      await ctx.reply(message);
+    } catch (err) {
+      await ctx.reply("Error al obtener los recordatorios");
     }
-
-    let message = "Tus recordatorios:\n";
-
-    reminders.forEach((reminder, index) => {
-      const date = new Date(reminder.date);
-      const formattedDate = `${date.getDate()}/${
-        date.getMonth() + 1
-      }/${date.getFullYear()}`;
-      message += `${formattedDate}: ${reminder.desc_text}\n`;
-    });
-
-    await ctx.reply(message);
   });
 
   bot.command("delete", async (ctx) => {
-    const { message } = ctx;
-    if (message?.text) {
-      // Extract the date from the message text (assuming it's in the format 'deleted YYYY-MM-DD')
-      const commandRegex = /deleted\s+(\d{4}-\d{2}-\d{2})/;
-      const match = message.text.match(commandRegex);
-      if (match && match[1]) {
-        const date = match[1];
+    try {
+      const { message } = ctx;
+      if (message?.text) {
+        // Extract the date from the message text (assuming it's in the format 'deleted YYYY-MM-DD')
+        const commandRegex = /deleted\s+(\d{4}-\d{2}-\d{2})/;
+        const match = message.text.match(commandRegex);
+        if (match && match[1]) {
+          const date = match[1];
 
-        await env.DB.prepare(
-          "DELETE FROM reminders WHERE date = ?1 AND telegram_id = ?2"
-        )
-          .bind(date, ctx.chatId)
-          .run();
-        await ctx.reply(`Recordatorio Borrado: ${date}`);
+          await env.DB.prepare(
+            "DELETE FROM reminders WHERE date = ?1 AND telegram_id = ?2"
+          )
+            .bind(date, ctx.chatId)
+            .run();
+          await ctx.reply(`Recordatorio Borrado: ${date}`);
+        } else {
+          await ctx.reply(
+            "Formato incorrecto.Usa 'add YYYY-MM-DD Descripción'."
+          );
+        }
       } else {
-        await ctx.reply("Formato incorrecto.Usa 'add YYYY-MM-DD Descripción'.");
+        await ctx.reply(
+          "Tienes que usar el formato 'add YYYY-MM-DD Descripción'."
+        );
       }
-    } else {
-      await ctx.reply(
-        "Tienes que usar el formato 'add YYYY-MM-DD Descripción'."
-      );
+    } catch (err) {
+      await ctx.reply("Error al borrar el recordatorio");
     }
   });
 
@@ -74,7 +85,7 @@ export async function handleBotUpdate(
         .run();
       await ctx.reply("Todos los recordatorios Borrados");
     } catch (err) {
-      await ctx.reply(JSON.stringify(err));
+      await ctx.reply("Error al borrar los recordatorios");
     }
   });
   bot.command("add", async (ctx) => {
@@ -171,7 +182,7 @@ export async function handleBotCronEvent(
 
     //bot.api.sendMessage(1992694297, "Hello, world!");
   } catch (err) {
-    console.log(err);
+    await bot.api.sendMessage(1992694297, JSON.stringify(err));
   }
 }
 
